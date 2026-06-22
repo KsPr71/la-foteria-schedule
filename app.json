@@ -41,6 +41,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5aff8e13-d4bf-4337-8309-d5e1447d19dd"
+      }
+    },
+    "owner": "novadevprojects"
   }
 }
