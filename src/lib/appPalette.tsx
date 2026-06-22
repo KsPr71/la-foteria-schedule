@@ -1,4 +1,6 @@
-import { createContext, PropsWithChildren, useContext, useMemo, useState } from 'react';
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+
+import { getPreference, setPreference } from './localCache';
 
 export type AppPalette = {
   id: string;
@@ -82,6 +84,7 @@ type AppPaletteContextValue = {
 };
 
 const AppPaletteContext = createContext<AppPaletteContextValue | null>(null);
+const PALETTE_PREFERENCE_KEY = 'app_palette_id';
 
 export function AppPaletteProvider({ children }: PropsWithChildren) {
   const [paletteId, setPaletteId] = useState(appPalettes[0].id);
@@ -89,9 +92,34 @@ export function AppPaletteProvider({ children }: PropsWithChildren) {
     () => appPalettes.find((item) => item.id === paletteId) ?? appPalettes[0],
     [paletteId],
   );
+  const changePalette = useCallback((id: string) => {
+    if (!appPalettes.some((item) => item.id === id)) {
+      return;
+    }
+    setPaletteId(id);
+    setPreference(PALETTE_PREFERENCE_KEY, id).catch((error) => {
+      console.warn('No se pudo guardar la paleta seleccionada', error);
+    });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    getPreference(PALETTE_PREFERENCE_KEY)
+      .then((storedPaletteId) => {
+        if (active && appPalettes.some((item) => item.id === storedPaletteId)) {
+          setPaletteId(storedPaletteId);
+        }
+      })
+      .catch((error) => {
+        console.warn('No se pudo cargar la paleta seleccionada', error);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
-    <AppPaletteContext.Provider value={{ palette, setPaletteId }}>
+    <AppPaletteContext.Provider value={{ palette, setPaletteId: changePalette }}>
       {children}
     </AppPaletteContext.Provider>
   );

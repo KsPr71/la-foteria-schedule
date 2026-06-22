@@ -25,6 +25,10 @@ async function getDb() {
         );
         CREATE INDEX IF NOT EXISTS sync_cache_table_updated_idx
           ON sync_cache (table_name, updated_at);
+        CREATE TABLE IF NOT EXISTS app_preferences (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
       `);
       return db;
     });
@@ -78,6 +82,27 @@ export async function clearCachedTable(tableName: string) {
   writeQueue = writeQueue.then(async () => {
     const db = await getDb();
     await db.runAsync('DELETE FROM sync_cache WHERE table_name = ?', tableName);
+  });
+  return writeQueue;
+}
+
+export async function getPreference(key: string) {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ value: string }>(
+    'SELECT value FROM app_preferences WHERE key = ? LIMIT 1',
+    key,
+  );
+  return rows[0]?.value || '';
+}
+
+export async function setPreference(key: string, value: string) {
+  writeQueue = writeQueue.then(async () => {
+    const db = await getDb();
+    await db.runAsync(
+      'INSERT OR REPLACE INTO app_preferences (key, value) VALUES (?, ?)',
+      key,
+      value,
+    );
   });
   return writeQueue;
 }

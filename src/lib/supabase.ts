@@ -1,23 +1,28 @@
-export const SUPABASE_URL =
-  process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://vzpulvvkhralddzwthap.supabase.co';
-
-export const SUPABASE_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_KEY ?? 'sb_publishable_WIliEe6d_j_cU5vfJJkgfg_vutDBD2l';
-
-const REST_URL = SUPABASE_URL.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '') + '/rest/v1';
+export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+export const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY;
 
 type QueryValue = string | number | boolean | null | undefined;
 
-function headers(prefer?: string) {
+function getSupabaseConfig() {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    throw new Error('Faltan EXPO_PUBLIC_SUPABASE_URL o EXPO_PUBLIC_SUPABASE_KEY. Reinicia Expo con el archivo .env en la raiz del proyecto.');
+  }
   return {
-    apikey: SUPABASE_KEY,
-    Authorization: `Bearer ${SUPABASE_KEY}`,
+    key: SUPABASE_KEY,
+    restUrl: SUPABASE_URL.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '') + '/rest/v1',
+  };
+}
+
+function headers(key: string, prefer?: string) {
+  return {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
     'Content-Type': 'application/json',
     ...(prefer ? { Prefer: prefer } : {}),
   };
 }
 
-function buildUrl(table: string, query?: Record<string, QueryValue>) {
+function buildUrl(restUrl: string, table: string, query?: Record<string, QueryValue>) {
   const params = new URLSearchParams();
   Object.entries(query ?? {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
@@ -25,7 +30,7 @@ function buildUrl(table: string, query?: Record<string, QueryValue>) {
     }
   });
   const suffix = params.toString();
-  return `${REST_URL}/${table}${suffix ? `?${suffix}` : ''}`;
+  return `${restUrl}/${table}${suffix ? `?${suffix}` : ''}`;
 }
 
 async function request<T>(
@@ -37,9 +42,10 @@ async function request<T>(
     prefer?: string;
   } = {},
 ) {
-  const response = await fetch(buildUrl(table, options.query), {
+  const config = getSupabaseConfig();
+  const response = await fetch(buildUrl(config.restUrl, table, options.query), {
     method: options.method ?? 'GET',
-    headers: headers(options.prefer),
+    headers: headers(config.key, options.prefer),
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
