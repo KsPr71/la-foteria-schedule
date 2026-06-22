@@ -38,6 +38,7 @@ import {
   todayIsoDate,
   weekDays,
 } from '@/lib/schedule';
+import { AppPalette, appPalettes, useAppPalette } from '@/lib/appPalette';
 import { subscribeNewReservation } from '@/lib/reservationActions';
 
 const brick = '#8f332a';
@@ -80,6 +81,7 @@ const durationOptions = [
 ];
 
 export default function AgendaScreen() {
+  const { palette, setPaletteId } = useAppPalette();
   const receiptRef = useRef<View>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -97,6 +99,7 @@ export default function AgendaScreen() {
   const [timeSelectorVisible, setTimeSelectorVisible] = useState(false);
   const [durationSelectorVisible, setDurationSelectorVisible] = useState(false);
   const [birthdateSelectorVisible, setBirthdateSelectorVisible] = useState(false);
+  const [paletteSelectorVisible, setPaletteSelectorVisible] = useState(false);
   const [newClientMode, setNewClientMode] = useState(false);
   const [clientSearch, setClientSearch] = useState('');
   const [sessionSearch, setSessionSearch] = useState('');
@@ -134,6 +137,7 @@ export default function AgendaScreen() {
 
   const week = useMemo(() => weekDays(selectedDate), [selectedDate]);
   const weekTitle = useMemo(() => `${shortDate(week[0])} - ${shortDate(week[6])}`, [week]);
+  const themed = useMemo(() => makeThemedStyles(palette), [palette]);
 
   const selectedClient = clients.find((client) => client.sync_uuid === form.partner_uuid);
   const selectedSessionType = sessionTypes.find((item) => item.sync_uuid === form.session_type_uuid);
@@ -294,26 +298,32 @@ export default function AgendaScreen() {
           <MaterialCommunityIcons name={name} color={color} size={size} />
         ),
       }}>
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, themed.screen]}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>La Fotería</Text>
-          <Text style={styles.title}>Agenda de reservas</Text>
+          <Text style={[styles.eyebrow, themed.accentText]}>La Fotería</Text>
+          <Text style={[styles.title, themed.title]}>Schedule</Text>
         </View>
+        <Pressable
+          accessibilityLabel="Cambiar paleta de colores"
+          style={[styles.paletteButton, themed.paletteButton]}
+          onPress={() => setPaletteSelectorVisible(true)}>
+          <MaterialCommunityIcons name="cog-outline" color={palette.accent} size={24} />
+        </Pressable>
       </View>
 
       <View style={styles.calendarSelectorRow}>
-        <Pressable style={styles.calendarSelector} onPress={() => setCalendarVisible(true)}>
+        <Pressable style={[styles.calendarSelector, themed.outlinedSurface]} onPress={() => setCalendarVisible(true)}>
           <Text style={styles.calendarSelectorLabel}>Semana</Text>
           <Text style={styles.calendarSelectorValue}>{weekTitle}</Text>
         </Pressable>
         <Pressable
-          style={styles.todayButton}
+          style={[styles.todayButton, themed.softButton]}
           onPress={() => {
             const today = todayIsoDate();
             setSelectedDate(today);
           }}>
-          <Text style={styles.todayButtonText}>Hoy</Text>
+          <Text style={[styles.todayButtonText, themed.accentText]}>Hoy</Text>
         </Pressable>
       </View>
 
@@ -326,7 +336,12 @@ export default function AgendaScreen() {
             <Pressable
               key={day}
               onPress={() => setSelectedDate(day)}
-              style={[styles.dayButton, empty && !selected && styles.dayButtonEmpty, selected && styles.dayButtonSelected]}>
+              style={[
+                styles.dayButton,
+                themed.dayButton,
+                empty && !selected && styles.dayButtonEmpty,
+                selected && themed.dayButtonSelected,
+              ]}>
               <Text style={[styles.dayLabel, selected && styles.dayLabelSelected]}>
                 {formatDayLabel(day)}
               </Text>
@@ -341,10 +356,10 @@ export default function AgendaScreen() {
       <ScrollView
         {...agendaPanResponder.panHandlers}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={brick} />}>
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={palette.accent} />}>
         {loading && !selectedReservations.length ? (
           <View style={styles.emptyState}>
-            <ActivityIndicator color={brick} />
+            <ActivityIndicator color={palette.accent} />
             <Text style={styles.emptyText}>Cargando reservas...</Text>
           </View>
         ) : selectedReservations.length ? (
@@ -367,20 +382,20 @@ export default function AgendaScreen() {
       </ScrollView>
 
       <Modal visible={formVisible} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={styles.modalScreen}>
-          <View style={styles.modalHeader}>
+        <SafeAreaView style={[styles.modalScreen, themed.screen]}>
+          <View style={[styles.modalHeader, themed.modalHeader]}>
             <View>
-              <Text style={styles.eyebrow}>{form.sync_uuid ? 'Editar' : 'Nueva'}</Text>
-              <Text style={styles.modalTitle}>Reserva</Text>
+              <Text style={[styles.eyebrow, themed.accentText]}>{form.sync_uuid ? 'Editar' : 'Nueva'}</Text>
+              <Text style={[styles.modalTitle, themed.title]}>Reserva</Text>
             </View>
-            <Pressable onPress={() => setFormVisible(false)} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>Cerrar</Text>
+            <Pressable onPress={() => setFormVisible(false)} style={[styles.closeButton, themed.softButton]}>
+              <Text style={[styles.closeButtonText, themed.accentText]}>Cerrar</Text>
             </Pressable>
           </View>
 
           <ScrollView contentContainerStyle={styles.formContent}>
-            <Text style={styles.sectionTitle}>Cliente</Text>
-            <Pressable style={styles.selectorButton} onPress={() => setClientSelectorVisible(true)}>
+            <Text style={[styles.sectionTitle, themed.accentText]}>Cliente</Text>
+            <Pressable style={[styles.selectorButton, themed.outlinedSurface]} onPress={() => setClientSelectorVisible(true)}>
               <View>
                 <Text style={styles.selectorLabel}>Cliente</Text>
                 <Text style={styles.selectorValue}>
@@ -391,13 +406,13 @@ export default function AgendaScreen() {
             </Pressable>
 
             {newClientMode && (
-              <View style={styles.inlinePanel}>
+              <View style={[styles.inlinePanel, themed.outlinedSurface]}>
                 <Text style={styles.helperText}>Nuevo cliente</Text>
                 <TextInput
                   value={form.customer_name}
                   onChangeText={(value) => updateForm('customer_name', value)}
                   placeholder="Nombre del cliente"
-                  style={styles.input}
+                  style={[styles.input, themed.input]}
                   placeholderTextColor="#9a948d"
                 />
               </View>
@@ -411,7 +426,7 @@ export default function AgendaScreen() {
                   onChangeText={(value) => updateForm('phone', value)}
                   placeholder="Teléfono"
                   keyboardType="phone-pad"
-                  style={styles.input}
+                  style={[styles.input, themed.input]}
                   placeholderTextColor="#9a948d"
                 />
               </View>
@@ -424,7 +439,7 @@ export default function AgendaScreen() {
               </View>
             </View>
 
-            <Text style={styles.sectionTitle}>Horario</Text>
+            <Text style={[styles.sectionTitle, themed.accentText]}>Horario</Text>
             <View style={styles.row}>
               <FieldButton label="Fecha" value={longDate(form.date)} onPress={() => setFormCalendarVisible(true)} />
               <FieldButton label="Hora" value={form.time || 'Seleccionar'} onPress={() => setTimeSelectorVisible(true)} />
@@ -435,7 +450,7 @@ export default function AgendaScreen() {
               onPress={() => setDurationSelectorVisible(true)}
             />
 
-            <Text style={styles.sectionTitle}>Sesión</Text>
+            <Text style={[styles.sectionTitle, themed.accentText]}>Sesión</Text>
             <FieldButton
               label="Tipo de sesión"
               value={selectedSessionType?.name || form.session_type || 'Seleccionar tipo'}
@@ -446,7 +461,7 @@ export default function AgendaScreen() {
                 value={form.session_type}
                 onChangeText={(value) => updateForm('session_type', value)}
                 placeholder="Tipo manual"
-                style={styles.input}
+                style={[styles.input, themed.input]}
                 placeholderTextColor="#9a948d"
               />
             )}
@@ -457,7 +472,7 @@ export default function AgendaScreen() {
               onPress={() => setPhotographerSelectorVisible(true)}
             />
 
-            <Text style={styles.sectionTitle}>Anticipo</Text>
+            <Text style={[styles.sectionTitle, themed.accentText]}>Anticipo</Text>
             <View style={styles.advanceFormRow}>
               <View style={styles.advanceAmountColumn}>
                 <Text style={styles.fieldLabel}>Importe</Text>
@@ -466,7 +481,7 @@ export default function AgendaScreen() {
                   onChangeText={(value) => updateForm('advance_amount', value)}
                   keyboardType="decimal-pad"
                   placeholder="0.00"
-                  style={styles.input}
+                  style={[styles.input, themed.input]}
                   placeholderTextColor="#9a948d"
                 />
               </View>
@@ -481,7 +496,8 @@ export default function AgendaScreen() {
                       key={item.key}
                       style={[
                         styles.paymentChoice,
-                        form.advance_payment_method === item.key && styles.paymentChoiceSelected,
+                        themed.paymentChoice,
+                        form.advance_payment_method === item.key && themed.paymentChoiceSelected,
                       ]}
                       onPress={() => updateForm('advance_payment_method', item.key)}>
                       <MaterialCommunityIcons
@@ -490,13 +506,13 @@ export default function AgendaScreen() {
                             ? 'checkbox-marked-circle'
                             : 'checkbox-blank-circle-outline'
                         }
-                        color={form.advance_payment_method === item.key ? brick : muted}
+                        color={form.advance_payment_method === item.key ? palette.accent : muted}
                         size={16}
                       />
                       <Text
                         style={[
                           styles.paymentChoiceText,
-                          form.advance_payment_method === item.key && styles.paymentChoiceTextSelected,
+                          form.advance_payment_method === item.key && themed.accentText,
                         ]}>
                         {item.label}
                       </Text>
@@ -512,7 +528,7 @@ export default function AgendaScreen() {
               onChangeText={(value) => updateForm('note', value)}
               placeholder="Observaciones de la reserva"
               multiline
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, themed.input, styles.textArea]}
               placeholderTextColor="#9a948d"
             />
 
@@ -521,11 +537,53 @@ export default function AgendaScreen() {
               <Text style={styles.receiptButtonText}>Generar imagen para WhatsApp</Text>
             </Pressable>
 
-            <Pressable style={[styles.primaryButton, styles.saveButton]} onPress={submit} disabled={saving}>
+            <Pressable style={[styles.primaryButton, themed.primaryButton, styles.saveButton]} onPress={submit} disabled={saving}>
               <Text style={styles.primaryButtonText}>{saving ? 'Guardando...' : 'Guardar reserva'}</Text>
             </Pressable>
           </ScrollView>
         </SafeAreaView>
+      </Modal>
+
+      <Modal visible={paletteSelectorVisible} transparent animationType="fade">
+        <View style={styles.calendarBackdrop}>
+          <View style={[styles.optionsPanel, themed.palettePanel]}>
+            <View style={styles.pickerHeader}>
+              <View>
+                <Text style={[styles.eyebrow, themed.accentText]}>Apariencia</Text>
+                <Text style={styles.pickerTitle}>Paleta de colores</Text>
+              </View>
+              <Pressable style={[styles.closePill, themed.softButton]} onPress={() => setPaletteSelectorVisible(false)}>
+                <Text style={[styles.closePillText, themed.accentText]}>Cerrar</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.paletteGrid}>
+              {appPalettes.map((item) => {
+                const selected = item.id === palette.id;
+                return (
+                  <Pressable
+                    key={item.id}
+                    style={[
+                      styles.paletteOption,
+                      { borderColor: selected ? item.accent : item.line, backgroundColor: item.paper },
+                    ]}
+                    onPress={() => {
+                      setPaletteId(item.id);
+                      setPaletteSelectorVisible(false);
+                    }}>
+                    <View style={styles.paletteSwatches}>
+                      <View style={[styles.paletteSwatchLarge, { backgroundColor: item.accent }]} />
+                      <View style={[styles.paletteSwatch, { backgroundColor: item.accentSoft }]} />
+                      <View style={[styles.paletteSwatch, { backgroundColor: item.ink }]} />
+                    </View>
+                    <Text style={[styles.paletteName, { color: item.ink }]}>{item.name}</Text>
+                    {selected ? <Text style={[styles.paletteSelected, { color: item.accent }]}>Activa</Text> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
       </Modal>
 
       <CompactDatePicker
@@ -659,34 +717,36 @@ export default function AgendaScreen() {
 }
 
 function ReservationCard({ reservation, onPress }: { reservation: Reservation; onPress: () => void }) {
+  const { palette } = useAppPalette();
+  const themed = useMemo(() => makeThemedStyles(palette), [palette]);
   const age = ageAtReservation(reservation);
   return (
-    <Pressable onPress={onPress} style={styles.card}>
+    <Pressable onPress={onPress} style={[styles.card, themed.card]}>
       <View style={styles.cardBody}>
-        <View style={styles.cardTimeHighlight}>
+        <View style={[styles.cardTimeHighlight, themed.cardTimeHighlight]}>
           <MaterialCommunityIcons name="clock-outline" color="#fff" size={16} />
-          <Text style={styles.cardTimeTextPill}>{timeRange(reservation)}</Text>
+          <Text style={[styles.cardTimeTextPill, themed.cardTimeTextPill]}>{timeRange(reservation)}</Text>
         </View>
 
-        <View style={styles.cardPersonBlock}>
-          <View style={styles.cardClientHeader}>
+        <View style={styles.cardClientHeader}>
+          <View style={styles.cardPersonBlock}>
             <CardInfoRow icon="account-outline" text={reservation.customer_name} title />
-            <Pressable
-              style={[styles.whatsappButton, !reservation.phone && styles.whatsappButtonDisabled]}
-              onPress={(event) => {
-                event.stopPropagation();
-                openReservationWhatsApp(reservation);
-              }}>
-              <MaterialCommunityIcons name="whatsapp" color={reservation.phone ? '#fff' : muted} size={20} />
-            </Pressable>
+            <View style={styles.cardInlineRow}>
+              {!!age && <CardInfoRow icon="cake-variant-outline" text={age} muted inline />}
+              {!!reservation.phone && <CardInfoRow icon="phone-outline" text={reservation.phone} phone inline />}
+            </View>
           </View>
-          <View style={styles.cardInlineRow}>
-            {!!age && <CardInfoRow icon="cake-variant-outline" text={age} muted inline />}
-            {!!reservation.phone && <CardInfoRow icon="phone-outline" text={reservation.phone} phone inline />}
-          </View>
+          <Pressable
+            style={[styles.whatsappButton, !reservation.phone && styles.whatsappButtonDisabled]}
+            onPress={(event) => {
+              event.stopPropagation();
+              openReservationWhatsApp(reservation);
+            }}>
+            <MaterialCommunityIcons name="whatsapp" color={reservation.phone ? '#fff' : muted} size={20} />
+          </Pressable>
         </View>
 
-        <View style={styles.cardSessionPanel}>
+        <View style={[styles.cardSessionPanel, themed.cardSessionPanel]}>
           <CardInfoRow icon="tag-outline" text={reservation.session_type || 'Sin tipo'} session />
           <View style={styles.cardPanelBottomRow}>
             <View style={styles.cardPhotographerSlot}>
@@ -875,11 +935,13 @@ function CardInfoRow({
   inline?: boolean;
   session?: boolean;
 }) {
+  const { palette } = useAppPalette();
+  const themed = useMemo(() => makeThemedStyles(palette), [palette]);
   return (
     <View style={[styles.cardInfoRow, inline && styles.cardInfoInline, title && styles.cardInfoTitleRow]}>
       <MaterialCommunityIcons
         name={icon}
-        color={time ? '#fff' : accent ? brick : phone ? green : mutedText ? muted : ink}
+        color={time ? '#fff' : accent ? palette.accent : phone ? green : mutedText ? muted : ink}
         size={title ? 19 : session ? 17 : compact || inline ? 14 : 16}
       />
       <Text
@@ -892,8 +954,8 @@ function CardInfoRow({
           session && styles.cardInfoSession,
           mutedText && styles.cardInfoMuted,
           phone && styles.cardInfoPhone,
-          accent && styles.cardInfoAccent,
-          time && styles.cardInfoTime,
+          accent && themed.accentText,
+          time && themed.cardInfoTime,
         ]}
         numberOfLines={title ? 2 : 1}>
         {text}
@@ -903,8 +965,10 @@ function CardInfoRow({
 }
 
 function FieldButton({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+  const { palette } = useAppPalette();
+  const themed = useMemo(() => makeThemedStyles(palette), [palette]);
   return (
-    <Pressable style={styles.selectorButton} onPress={onPress}>
+    <Pressable style={[styles.selectorButton, themed.outlinedSurface]} onPress={onPress}>
       <View style={styles.selectorTextBlock}>
         <Text style={styles.selectorLabel}>{label}</Text>
         <Text style={styles.selectorValue} numberOfLines={1}>
@@ -935,26 +999,28 @@ function PickerModal({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const { palette } = useAppPalette();
+  const themed = useMemo(() => makeThemedStyles(palette), [palette]);
   return (
     <Modal visible={visible} transparent animationType="fade">
       <Pressable style={styles.calendarBackdrop} onPress={onClose}>
-        <Pressable style={styles.pickerPanel}>
+        <Pressable style={[styles.pickerPanel, themed.palettePanel]}>
           <View style={styles.pickerHeader}>
             <Text style={styles.pickerTitle}>{title}</Text>
-            <Pressable onPress={onClose} style={styles.closePill}>
-              <Text style={styles.closePillText}>Cerrar</Text>
+            <Pressable onPress={onClose} style={[styles.closePill, themed.softButton]}>
+              <Text style={[styles.closePillText, themed.accentText]}>Cerrar</Text>
             </Pressable>
           </View>
           <TextInput
             value={search}
             onChangeText={onSearch}
             placeholder="Buscar"
-            style={styles.searchInput}
+            style={[styles.searchInput, themed.input]}
             placeholderTextColor="#9a948d"
           />
           {!!actionLabel && !!onAction && (
-            <Pressable style={styles.modalAction} onPress={onAction}>
-              <Text style={styles.modalActionText}>{actionLabel}</Text>
+            <Pressable style={[styles.modalAction, { borderColor: palette.accent }]} onPress={onAction}>
+              <Text style={[styles.modalActionText, themed.accentText]}>{actionLabel}</Text>
             </Pressable>
           )}
           <ScrollView style={styles.pickerList} contentContainerStyle={styles.pickerListContent}>
@@ -962,10 +1028,10 @@ function PickerModal({
               items.map((item) => (
                 <Pressable
                   key={item.key}
-                  style={[styles.pickerItem, item.selected && styles.pickerItemSelected]}
+                  style={[styles.pickerItem, themed.outlinedSurface, item.selected && themed.paymentChoiceSelected]}
                   onPress={item.onPress}>
                   <View style={styles.selectorTextBlock}>
-                    <Text style={[styles.pickerItemTitle, item.selected && styles.pickerItemTitleSelected]}>
+                    <Text style={[styles.pickerItemTitle, item.selected && themed.accentText]}>
                       {item.title}
                     </Text>
                     {!!item.subtitle && <Text style={styles.pickerItemSubtitle}>{item.subtitle}</Text>}
@@ -1000,21 +1066,23 @@ function OptionsModal({
   onClose: () => void;
   onSelect: (value: string) => void;
 }) {
+  const { palette } = useAppPalette();
+  const themed = useMemo(() => makeThemedStyles(palette), [palette]);
   return (
     <Modal visible={visible} transparent animationType="fade">
       <Pressable style={styles.calendarBackdrop} onPress={onClose}>
-        <Pressable style={styles.optionsPanel}>
+        <Pressable style={[styles.optionsPanel, themed.palettePanel]}>
           <View style={styles.pickerHeader}>
             <Text style={styles.pickerTitle}>{title}</Text>
-            <Pressable onPress={onClose} style={styles.closePill}>
-              <Text style={styles.closePillText}>Cerrar</Text>
+            <Pressable onPress={onClose} style={[styles.closePill, themed.softButton]}>
+              <Text style={[styles.closePillText, themed.accentText]}>Cerrar</Text>
             </Pressable>
           </View>
           <View style={styles.optionGrid}>
             {options.map((option) => (
               <Pressable
                 key={option}
-                style={[styles.optionButton, selected === option && styles.optionButtonSelected]}
+                style={[styles.optionButton, themed.outlinedSurface, selected === option && themed.primaryButton]}
                 onPress={() => onSelect(option)}>
                 <Text style={[styles.optionText, selected === option && styles.optionTextSelected]}>
                   {labels[option] || option}
@@ -1047,6 +1115,8 @@ function CompactDatePicker({
   onClose: () => void;
   onSelect: (value: string) => void;
 }) {
+  const { palette } = useAppPalette();
+  const themed = useMemo(() => makeThemedStyles(palette), [palette]);
   const [draftDate, setDraftDate] = useState<Date | undefined>(dateFromIso(selectedDate));
 
   useEffect(() => {
@@ -1058,14 +1128,14 @@ function CompactDatePicker({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.calendarBackdrop} onPress={onClose}>
-        <Pressable style={styles.compactDatePanel}>
+        <Pressable style={[styles.compactDatePanel, themed.palettePanel]}>
           <View style={styles.compactDateHeader}>
             <View>
-              <Text style={styles.eyebrow}>Calendario</Text>
-              <Text style={styles.compactDateTitle}>{title}</Text>
+              <Text style={[styles.eyebrow, themed.accentText]}>Calendario</Text>
+              <Text style={[styles.compactDateTitle, themed.title]}>{title}</Text>
             </View>
-            <Pressable onPress={onClose} style={styles.closePill}>
-              <Text style={styles.closePillText}>Cerrar</Text>
+            <Pressable onPress={onClose} style={[styles.closePill, themed.softButton]}>
+              <Text style={[styles.closePillText, themed.accentText]}>Cerrar</Text>
             </Pressable>
           </View>
 
@@ -1091,7 +1161,7 @@ function CompactDatePicker({
               <Text style={styles.compactCancelText}>Cancelar</Text>
             </Pressable>
             <Pressable
-              style={styles.compactConfirmButton}
+              style={[styles.compactConfirmButton, themed.primaryButton]}
               onPress={() => {
                 if (draftDate) {
                   onSelect(isoFromDate(draftDate));
@@ -1527,6 +1597,79 @@ function currentDurationFallback(value: string) {
   return Number(value) || 1;
 }
 
+function makeThemedStyles(palette: AppPalette) {
+  return StyleSheet.create({
+    screen: {
+      backgroundColor: palette.paper,
+    },
+    title: {
+      color: palette.ink,
+    },
+    accentText: {
+      color: palette.accent,
+    },
+    paletteButton: {
+      borderColor: palette.line,
+      backgroundColor: '#fff',
+    },
+    outlinedSurface: {
+      borderColor: palette.line,
+      backgroundColor: '#fff',
+    },
+    softButton: {
+      backgroundColor: palette.accentSoft,
+    },
+    primaryButton: {
+      backgroundColor: palette.accent,
+    },
+    modalHeader: {
+      borderBottomColor: palette.line,
+    },
+    input: {
+      borderColor: palette.line,
+      backgroundColor: '#fff',
+      color: palette.ink,
+    },
+    paymentChoice: {
+      borderColor: palette.line,
+      backgroundColor: '#fff',
+    },
+    paymentChoiceSelected: {
+      borderColor: palette.accent,
+      backgroundColor: palette.accentSoft,
+    },
+    dayButton: {
+      borderColor: palette.line,
+      backgroundColor: '#fff',
+    },
+    dayButtonSelected: {
+      backgroundColor: palette.accent,
+      borderColor: palette.accent,
+    },
+    palettePanel: {
+      borderColor: palette.line,
+      backgroundColor: palette.paper,
+    },
+    card: {
+      borderColor: palette.line,
+      borderLeftColor: palette.accent,
+    },
+    cardTimeHighlight: {
+      backgroundColor: palette.accent,
+    },
+    cardTimeTextPill: {
+      color: palette.accent,
+    },
+    cardSessionPanel: {
+      backgroundColor: palette.accentSoft,
+      borderColor: palette.line,
+    },
+    cardInfoTime: {
+      color: palette.accent,
+    },
+  });
+}
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -1539,6 +1682,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  paletteButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   eyebrow: {
     color: brick,
@@ -1560,6 +1711,43 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: '#fff',
     fontWeight: '800',
+  },
+  paletteGrid: {
+    gap: 10,
+  },
+  paletteOption: {
+    minHeight: 72,
+    borderRadius: 10,
+    borderWidth: 2,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  paletteSwatches: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  paletteSwatchLarge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  paletteSwatch: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+  },
+  paletteName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  paletteSelected: {
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   weekStrip: {
     flexDirection: 'row',
@@ -1662,14 +1850,17 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   cardPersonBlock: {
+    flex: 1,
     gap: 5,
     justifyContent: 'center',
+    minWidth: 0,
   },
   cardClientHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     width: '100%',
+    paddingRight: 4,
   },
   whatsappButton: {
     width: 34,
@@ -1679,6 +1870,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    marginRight: 4,
   },
   whatsappButtonDisabled: {
     backgroundColor: '#edf0f2',

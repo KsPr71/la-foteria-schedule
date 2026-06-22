@@ -1,16 +1,13 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { useAppPalette } from '@/lib/appPalette';
 import { requestNewReservation } from '@/lib/reservationActions';
 
-const brick = '#8f332a';
-
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const { palette } = useAppPalette();
 
   const openNewReservation = () => {
     router.navigate('/');
@@ -20,9 +17,9 @@ export default function AppTabs() {
   return (
     <View style={styles.root}>
       <NativeTabs
-        backgroundColor={colors.background}
-        indicatorColor={colors.backgroundElement}
-        labelStyle={{ selected: { color: colors.text } }}>
+        backgroundColor={palette.paper}
+        indicatorColor={palette.accentSoft}
+        labelStyle={{ selected: { color: palette.accent } }}>
         <NativeTabs.Trigger name="index">
           <NativeTabs.Trigger.Label>Agenda</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon
@@ -40,14 +37,15 @@ export default function AppTabs() {
         </NativeTabs.Trigger>
       </NativeTabs>
       <Pressable
-  accessibilityLabel="Nueva reserva"
-  style={({ pressed }) => [
-    styles.centerAction,
-    pressed && { backgroundColor: '#ff0000' } // Cambia a un tono más oscuro
-  ]}
-  onPress={openNewReservation}>
-  <MaterialCommunityIcons name="plus" color="#fff" size={32} />
-</Pressable>
+        accessibilityLabel="Nueva reserva"
+        style={({ pressed }) => [
+          styles.centerAction,
+          { backgroundColor: palette.accent },
+          pressed && { opacity: 0.82 },
+        ]}
+        onPress={openNewReservation}>
+        <MaterialCommunityIcons name="plus" color="#fff" size={32} />
+      </Pressable>
     </View>
   );
 }
@@ -63,7 +61,6 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 31,
-    backgroundColor: brick,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
