@@ -2,9 +2,11 @@ import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'r
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Linking,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -302,7 +304,7 @@ export default function AgendaScreen() {
       <View style={styles.header}>
         <View>
           <Text style={[styles.eyebrow, themed.accentText]}>La Fotería</Text>
-          <Text style={[styles.title, themed.title]}>Schedule</Text>
+          <Text style={[styles.title, themed.title]}>Agenda de Reservas</Text>
         </View>
         <Pressable
           accessibilityLabel="Cambiar paleta de colores"
@@ -393,7 +395,14 @@ export default function AgendaScreen() {
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={styles.formContent}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+            style={styles.keyboardSafeArea}>
+          <ScrollView
+            contentContainerStyle={styles.formContent}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled">
             <Text style={[styles.sectionTitle, themed.accentText]}>Cliente</Text>
             <Pressable style={[styles.selectorButton, themed.outlinedSurface]} onPress={() => setClientSelectorVisible(true)}>
               <View>
@@ -541,6 +550,7 @@ export default function AgendaScreen() {
               <Text style={styles.primaryButtonText}>{saving ? 'Guardando...' : 'Guardar reserva'}</Text>
             </Pressable>
           </ScrollView>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
 
@@ -1833,6 +1843,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 20,
+    paddingBottom: 100,
     gap: 12,
   },
   card: {
@@ -2022,6 +2033,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: paper,
   },
+  keyboardSafeArea: {
+    flex: 1,
+  },
   modalHeader: {
     padding: 20,
     flexDirection: 'row',
@@ -2043,7 +2057,7 @@ const styles = StyleSheet.create({
   },
   formContent: {
     paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingBottom: 48,
     gap: 9,
   },
   sectionTitle: {
