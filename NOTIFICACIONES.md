@@ -122,12 +122,41 @@ Los dispositivos se almacenan en `lafoteria_push_tokens`.
 
 ## 5. Probar el resumen de manana
 
-La prueba manual ignora la hora y el registro de envio previo:
+Crear primero un secreto exclusivo para las pruebas administrativas:
+
+```powershell
+npx supabase secrets set LAFOTERIA_NOTIFICATION_SECRET=UNA_CLAVE_LARGA_Y_ALEATORIA
+```
+
+Volver a desplegar la funcion:
+
+```powershell
+npx supabase functions deploy lafoteria-notifications --no-verify-jwt
+```
+
+En el probador de Edge Functions del Dashboard usar:
+
+```text
+Method: POST
+Header: x-lafoteria-secret = UNA_CLAVE_LARGA_Y_ALEATORIA
+```
+
+Body:
+
+```json
+{
+  "event": "tomorrow_summary",
+  "force": true
+}
+```
+
+La prueba manual ignora la hora y el registro de envio previo. Tambien puede
+realizarse por terminal:
 
 ```powershell
 curl.exe -X POST `
   "https://vzpulvvkhralddzwthap.supabase.co/functions/v1/lafoteria-notifications" `
-  -H "Authorization: Bearer SERVICE_ROLE_KEY" `
+  -H "x-lafoteria-secret: UNA_CLAVE_LARGA_Y_ALEATORIA" `
   -H "Content-Type: application/json" `
   -d '{"event":"tomorrow_summary","force":true}'
 ```

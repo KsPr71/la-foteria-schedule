@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
+import Constants from 'expo-constants';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as Sharing from 'expo-sharing';
 import PaperProvider from 'react-native-paper/lib/commonjs/core/PaperProvider';
@@ -82,6 +83,13 @@ const durationOptions = [
   { label: '3 h', value: '3' },
 ];
 
+type NotificationTokenStatus =
+  | { state: 'idle'; message: string }
+  | { state: 'checking'; message: string }
+  | { state: 'success'; message: string; token: string }
+  | { state: 'warning'; message: string }
+  | { state: 'error'; message: string };
+
 export default function AgendaScreen() {
   const { palette, setPaletteId } = useAppPalette();
   const receiptRef = useRef<View>(null);
@@ -102,6 +110,11 @@ export default function AgendaScreen() {
   const [durationSelectorVisible, setDurationSelectorVisible] = useState(false);
   const [birthdateSelectorVisible, setBirthdateSelectorVisible] = useState(false);
   const [paletteSelectorVisible, setPaletteSelectorVisible] = useState(false);
+  const [notificationTokenStatus, setNotificationTokenStatus] =
+    useState<NotificationTokenStatus>({
+      state: 'idle',
+      message: 'Token sin comprobar',
+    });
   const [newClientMode, setNewClientMode] = useState(false);
   const [clientSearch, setClientSearch] = useState('');
   const [sessionSearch, setSessionSearch] = useState('');
@@ -290,6 +303,44 @@ export default function AgendaScreen() {
       });
     } catch (error) {
       Alert.alert('No se pudo generar la imagen', String(error));
+    }
+  };
+
+  const checkNotificationToken = async () => {
+    if (Constants.appOwnership === 'expo') {
+      setNotificationTokenStatus({
+        state: 'warning',
+        message: 'No disponible en Expo Go. Usa un APK o development build.',
+      });
+      return;
+    }
+
+    setNotificationTokenStatus({
+      state: 'checking',
+      message: 'Comprobando token...',
+    });
+    try {
+      const { registerPushNotifications } = await import(
+        '@/lib/pushNotifications'
+      );
+      const token = await registerPushNotifications();
+      if (!token) {
+        setNotificationTokenStatus({
+          state: 'warning',
+          message: 'El permiso de notificaciones no está concedido.',
+        });
+        return;
+      }
+      setNotificationTokenStatus({
+        state: 'success',
+        message: 'Token registrado correctamente en Supabase.',
+        token,
+      });
+    } catch (error) {
+      setNotificationTokenStatus({
+        state: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
   };
 
@@ -567,6 +618,10 @@ export default function AgendaScreen() {
               </Pressable>
             </View>
 
+            <ScrollView
+              style={styles.settingsScroll}
+              contentContainerStyle={styles.settingsContent}
+              showsVerticalScrollIndicator={false}>
             <View style={styles.paletteGrid}>
               {appPalettes.map((item) => {
                 const selected = item.id === palette.id;
@@ -592,6 +647,80 @@ export default function AgendaScreen() {
                 );
               })}
             </View>
+
+            <View style={[styles.notificationSettings, themed.outlinedSurface]}>
+              <View style={styles.notificationSettingsHeader}>
+                <View
+                  style={[
+                    styles.notificationStatusIcon,
+                    themed.softButton,
+                  ]}>
+                  <MaterialCommunityIcons
+                    name={
+                      notificationTokenStatus.state === 'success'
+                        ? 'bell-check-outline'
+                        : notificationTokenStatus.state === 'error'
+                          ? 'bell-alert-outline'
+                          : 'bell-outline'
+                    }
+                    color={
+                      notificationTokenStatus.state === 'error'
+                        ? '#b3261e'
+                        : palette.accent
+                    }
+                    size={22}
+                  />
+                </View>
+                <View style={styles.notificationSettingsText}>
+                  <Text style={styles.notificationSettingsTitle}>
+                    Notificaciones
+                  </Text>
+                  <Text
+                    style={[
+                      styles.notificationSettingsMessage,
+                      notificationTokenStatus.state === 'success' &&
+                        styles.notificationStatusSuccess,
+                      notificationTokenStatus.state === 'error' &&
+                        styles.notificationStatusError,
+                    ]}>
+                    {notificationTokenStatus.message}
+                  </Text>
+                </View>
+              </View>
+
+              {notificationTokenStatus.state === 'success' ? (
+                <Text style={styles.notificationTokenValue} numberOfLines={1}>
+                  {shortPushToken(notificationTokenStatus.token)}
+                </Text>
+              ) : null}
+
+              <Pressable
+                disabled={notificationTokenStatus.state === 'checking'}
+                style={({ pressed }) => [
+                  styles.notificationCheckButton,
+                  themed.primaryButton,
+                  pressed && styles.notificationCheckButtonPressed,
+                  notificationTokenStatus.state === 'checking' &&
+                    styles.notificationCheckButtonDisabled,
+                ]}
+                onPress={checkNotificationToken}>
+                {notificationTokenStatus.state === 'checking' ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <MaterialCommunityIcons
+                    name="shield-check-outline"
+                    color="#fff"
+                    size={18}
+                  />
+                )}
+                <Text style={styles.notificationCheckButtonText}>
+                  {notificationTokenStatus.state === 'checking'
+                    ? 'Comprobando'
+                    : 'Comprobar token'}
+                </Text>
+              </Pressable>
+            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1607,6 +1736,13 @@ function currentDurationFallback(value: string) {
   return Number(value) || 1;
 }
 
+function shortPushToken(token: string) {
+  if (token.length <= 34) {
+    return token;
+  }
+  return `${token.slice(0, 22)}...${token.slice(-8)}`;
+}
+
 function makeThemedStyles(palette: AppPalette) {
   return StyleSheet.create({
     screen: {
@@ -1758,6 +1894,79 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     textTransform: 'uppercase',
+  },
+  settingsScroll: {
+    maxHeight: 560,
+  },
+  settingsContent: {
+    gap: 16,
+    paddingBottom: 2,
+  },
+  notificationSettings: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 12,
+    gap: 12,
+  },
+  notificationSettingsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  notificationStatusIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationSettingsText: {
+    flex: 1,
+    gap: 2,
+  },
+  notificationSettingsTitle: {
+    color: ink,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  notificationSettingsMessage: {
+    color: muted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  notificationStatusSuccess: {
+    color: green,
+  },
+  notificationStatusError: {
+    color: '#b3261e',
+  },
+  notificationTokenValue: {
+    color: muted,
+    fontSize: 11,
+    fontWeight: '700',
+    backgroundColor: '#f7f7f8',
+    borderRadius: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+  },
+  notificationCheckButton: {
+    minHeight: 44,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  notificationCheckButtonPressed: {
+    opacity: 0.82,
+  },
+  notificationCheckButtonDisabled: {
+    opacity: 0.65,
+  },
+  notificationCheckButtonText: {
+    color: '#fff',
+    fontWeight: '900',
   },
   weekStrip: {
     flexDirection: 'row',

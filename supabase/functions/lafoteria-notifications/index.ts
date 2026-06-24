@@ -22,6 +22,7 @@ type WebhookPayload = {
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const expoAccessToken = Deno.env.get('EXPO_ACCESS_TOKEN');
+const notificationSecret = Deno.env.get('LAFOTERIA_NOTIFICATION_SECRET');
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 Deno.serve(async (request) => {
@@ -29,7 +30,13 @@ Deno.serve(async (request) => {
     return Response.json({ error: 'Metodo no permitido' }, { status: 405 });
   }
 
-  if (request.headers.get('Authorization') !== `Bearer ${serviceRoleKey}`) {
+  const hasServiceRole =
+    request.headers.get('Authorization') === `Bearer ${serviceRoleKey}`;
+  const hasNotificationSecret =
+    Boolean(notificationSecret) &&
+    request.headers.get('x-lafoteria-secret') === notificationSecret;
+
+  if (!hasServiceRole && !hasNotificationSecret) {
     return Response.json({ error: 'No autorizado' }, { status: 401 });
   }
 
@@ -50,8 +57,17 @@ Deno.serve(async (request) => {
 
     return Response.json({ ignored: true });
   } catch (error) {
-    console.error(error);
-    return Response.json({ error: String(error) }, { status: 500 });
+    const details = serializeError(error);
+    console.error('lafoteria-notifications error', details);
+    return Response.json(
+      {
+        error: details.message,
+        details: details.details,
+        hint: details.hint,
+        code: details.code,
+      },
+      { status: 500 },
+    );
   }
 });
 
@@ -105,7 +121,7 @@ async function notifyTomorrow(force: boolean) {
   const { data, error } = await supabase
     .from('lafoteria_reservations')
     .select(
-      'sync_uuid,customer_name,session_type,schedule_local,date_start_local,photographer_name,state,active',
+      'sync_uuid,customer_name,session_type,schedule_local,date_start_local,photographer_name,state',
     )
     .gte('date_start_local', `${tomorrow} 00:00:00`)
     .lt('date_start_local', `${dayAfterTomorrow} 00:00:00`)
@@ -116,7 +132,7 @@ async function notifyTomorrow(force: boolean) {
   }
 
   const reservations = ((data || []) as Reservation[]).filter(
-    (item) => item.active !== false && item.state !== 'cancelled',
+    (item) => item.state !== 'cancelled',
   );
 
   const title = reservations.length
@@ -249,4 +265,37 @@ function addDays(isoDate: string, days: number) {
 
 function localTime(value?: string | null) {
   return value?.slice(11, 16) || 'Sin horario';
+}
+
+function serializeError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      details: error.stack,
+      hint: null,
+      code: error.name,
+    };
+  }
+
+  if (error && typeof error === 'object') {
+    const value = error as Record<string, unknown>;
+    return {
+      message:
+        typeof value.message === 'string'
+          ? value.message
+          : JSON.stringify(value),
+      details:
+        typeof value.details === 'string' ? value.details : null,
+      hint: typeof value.hint === 'string' ? value.hint : null,
+      code:
+        typeof value.code === 'string' ? value.code : 'UNKNOWN_ERROR',
+    };
+  }
+
+  return {
+    message: String(error),
+    details: null,
+    hint: null,
+    code: 'UNKNOWN_ERROR',
+  };
 }
