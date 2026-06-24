@@ -19,6 +19,12 @@ export async function registerPushNotifications() {
     return null;
   }
 
+  if (!Device.isDevice) {
+    throw new Error(
+      'DISPOSITIVO: Las notificaciones push requieren un dispositivo fisico.',
+    );
+  }
+
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('reservas', {
       name: 'Reservas',
@@ -47,15 +53,50 @@ export async function registerPushNotifications() {
     throw new Error('No se encontro el projectId de EAS para registrar notificaciones.');
   }
 
-  const expoPushToken = (
-    await Notifications.getExpoPushTokenAsync({ projectId })
-  ).data;
+  try {
+    await Notifications.getDevicePushTokenAsync();
+  } catch (error) {
+    throw new Error(
+      `FCM: No se pudo obtener el token nativo de Firebase. ${errorMessage(error)}`,
+    );
+  }
 
-  await callRpc('register_lafoteria_push_token', {
-    p_expo_push_token: expoPushToken,
-    p_platform: Platform.OS,
-    p_device_name: Device.deviceName || Device.modelName || 'Dispositivo',
-  });
+  let expoPushToken: string;
+  try {
+    expoPushToken = (
+      await Notifications.getExpoPushTokenAsync({ projectId })
+    ).data;
+  } catch (error) {
+    throw new Error(
+      `EXPO: Firebase respondio, pero no se pudo obtener el ExpoPushToken. ${errorMessage(error)}`,
+    );
+  }
+
+  try {
+    await callRpc('register_lafoteria_push_token', {
+      p_expo_push_token: expoPushToken,
+      p_platform: Platform.OS,
+      p_device_name: Device.deviceName || Device.modelName || 'Dispositivo',
+    });
+  } catch (error) {
+    throw new Error(
+      `SUPABASE: Se obtuvo el token, pero no se pudo registrar. ${errorMessage(error)}`,
+    );
+  }
 
   return expoPushToken;
+}
+
+function errorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (error && typeof error === 'object') {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return 'Error desconocido';
+    }
+  }
+  return String(error);
 }

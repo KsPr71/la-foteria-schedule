@@ -12,11 +12,45 @@ El sistema usa:
 
 ### Nueva reserva
 
-Al insertar un registro en `lafoteria_reservations`, Supabase envia:
+Al insertar un registro en `lafoteria_reservations`, un Database Webhook de
+Supabase invoca la Edge Function y envia:
 
 ```text
 Nueva reserva
 Cliente · horario · tipo de sesion
+```
+
+Configurar el webhook desde:
+
+```text
+Supabase Dashboard > Database > Webhooks > Create a new hook
+```
+
+Usar:
+
+```text
+Name: lafoteria-new-reservation
+Table: public.lafoteria_reservations
+Events: INSERT
+Type: Supabase Edge Functions
+Function: lafoteria-notifications
+Method: POST
+Timeout: 1000
+```
+
+En `HTTP Headers`, seleccionar:
+
+```text
+Add auth header with service key
+Content-Type: application/json
+```
+
+Antes de activar el webhook, ejecutar en SQL Editor para evitar duplicados con
+el trigger anterior:
+
+```sql
+drop trigger if exists lafoteria_reservation_insert_push
+on public.lafoteria_reservations;
 ```
 
 ### Reservas de manana

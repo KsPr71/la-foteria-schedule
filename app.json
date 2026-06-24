@@ -43,6 +43,8 @@
         "expo-notifications",
         {
           "defaultChannel": "reservas",
+          "icon": "./assets/images/notification-icon-monochrome.png",
+          "color": "#8F332A",
           "enableBackgroundRemoteNotifications": false
         }
       ],
