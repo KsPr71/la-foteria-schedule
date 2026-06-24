@@ -29,7 +29,6 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
-google-services.json
 
 # local env files
 .env
