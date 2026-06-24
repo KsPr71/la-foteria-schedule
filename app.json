@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "La Foteria Schedule",
+    "name": "Agenda de Reservas",
     "slug": "la-foteria-schedule",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.lafoteria.schedule",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -38,6 +39,13 @@
       ],
       "expo-sqlite",
       "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "reservas",
+          "enableBackgroundRemoteNotifications": false
+        }
+      ],
       [
         "expo-navigation-bar",
         {

@@ -1,0 +1,2 @@
+[functions.lafoteria-notifications]
+verify_jwt = false

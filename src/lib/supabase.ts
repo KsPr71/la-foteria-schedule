@@ -79,6 +79,13 @@ export function updateRow<T>(table: string, syncUuid: string, row: Record<string
   });
 }
 
+export function callRpc<T>(functionName: string, body: Record<string, unknown>) {
+  return request<T>(`rpc/${functionName}`, {
+    method: 'POST',
+    body,
+  });
+}
+
 export function makeUuid() {
   const random = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).slice(1);
   return `${random()}${random()}-${random()}-${random()}-${random()}-${random()}${random()}${random()}`;
