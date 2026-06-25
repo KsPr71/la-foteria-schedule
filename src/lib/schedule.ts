@@ -68,7 +68,7 @@ export type ReservationForm = {
 };
 
 export async function loadScheduleData() {
-  const [reservations, clients, sessionTypes, photographers] = await Promise.all([
+  const [reservations, remoteClients, sessionTypes, photographers] = await Promise.all([
     syncTable<Reservation>('lafoteria_reservations', {
       select: '*',
       order: 'date_start_local.asc',
@@ -87,14 +87,99 @@ export async function loadScheduleData() {
     }),
   ]);
 
-  return {
-    reservations: reservations
+  const activeReservations = reservations
       .filter((item) => item.state !== 'cancelled' && item.active !== false)
-      .sort((a, b) => dateTimeSortValue(a).localeCompare(dateTimeSortValue(b))),
+      .sort((a, b) => dateTimeSortValue(a).localeCompare(dateTimeSortValue(b)));
+  const clients = mergeClientsWithReservations(
+    deduplicateClients(remoteClients, activeReservations),
+    activeReservations,
+  );
+
+  return {
+    reservations: activeReservations,
     clients: clients.filter((item) => item.active !== false).sort((a, b) => a.name.localeCompare(b.name)),
     sessionTypes: sessionTypes.filter((item) => item.active !== false).sort((a, b) => a.name.localeCompare(b.name)),
     photographers: photographers.filter((item) => item.active !== false).sort((a, b) => a.name.localeCompare(b.name)),
   };
+}
+
+function deduplicateClients(clients: Client[], reservations: Reservation[]) {
+  const referencedUuids = new Set(
+    reservations.map((reservation) => reservation.partner_uuid).filter(Boolean),
+  );
+  const sortedClients = [...clients].sort((left, right) => {
+    const leftReferenced = referencedUuids.has(left.sync_uuid) ? 1 : 0;
+    const rightReferenced = referencedUuids.has(right.sync_uuid) ? 1 : 0;
+    if (leftReferenced !== rightReferenced) {
+      return rightReferenced - leftReferenced;
+    }
+    return String(right.updated_at || '').localeCompare(String(left.updated_at || ''));
+  });
+  const result: Client[] = [];
+  const knownNames = new Set<string>();
+  const knownPhones = new Set<string>();
+
+  for (const client of sortedClients) {
+    const name = normalize(client.name);
+    const phone = normalizePhone(client.phone);
+    if (
+      (name && knownNames.has(name)) ||
+      (phone && knownPhones.has(phone))
+    ) {
+      continue;
+    }
+    result.push(client);
+    if (name) {
+      knownNames.add(name);
+    }
+    if (phone) {
+      knownPhones.add(phone);
+    }
+  }
+  return result;
+}
+
+function mergeClientsWithReservations(clients: Client[], reservations: Reservation[]) {
+  const merged = [...clients];
+  const knownUuids = new Set(
+    clients.map((client) => client.sync_uuid).filter(Boolean),
+  );
+  const knownNames = new Set(
+    clients.map((client) => normalize(client.name)).filter(Boolean),
+  );
+  const knownPhones = new Set(
+    clients.map((client) => normalizePhone(client.phone)).filter(Boolean),
+  );
+
+  for (const reservation of reservations) {
+    const name = (reservation.customer_name || '').trim();
+    const phone = normalizePhone(reservation.phone);
+    const partnerUuid = reservation.partner_uuid || '';
+    if (
+      !name ||
+      (partnerUuid && knownUuids.has(partnerUuid)) ||
+      knownNames.has(normalize(name)) ||
+      (phone && knownPhones.has(phone))
+    ) {
+      continue;
+    }
+
+    const client: Client = {
+      sync_uuid: partnerUuid || `reservation-${reservation.sync_uuid}`,
+      name,
+      phone: reservation.phone || null,
+      birthdate: reservation.birthdate || null,
+      active: true,
+      updated_at: reservation.updated_at || null,
+    };
+    merged.push(client);
+    knownUuids.add(client.sync_uuid);
+    knownNames.add(normalize(name));
+    if (phone) {
+      knownPhones.add(phone);
+    }
+  }
+  return merged;
 }
 
 async function syncTable<T extends { sync_uuid: string; updated_at?: string | null; active?: boolean | null }>(
@@ -135,7 +220,10 @@ export async function saveReservation(form: ReservationForm, clients: Client[]) 
       (form.phone && client.phone === form.phone),
   );
 
-  let partnerUuid = existingClient?.sync_uuid;
+  let partnerUuid =
+    existingClient && !isInferredClient(existingClient)
+      ? existingClient.sync_uuid
+      : undefined;
   let savedClientRows: Client[] = [];
   if (!partnerUuid) {
     partnerUuid = makeUuid();
@@ -147,7 +235,7 @@ export async function saveReservation(form: ReservationForm, clients: Client[]) 
       active: true,
       updated_at: now,
     });
-  } else if (existingClient) {
+  } else if (existingClient && !isInferredClient(existingClient)) {
     savedClientRows = await updateRow<Client>('lafoteria_clients', partnerUuid, {
       name: form.customer_name.trim(),
       phone: form.phone.trim() || null,
@@ -283,6 +371,14 @@ function timeLabel(date: Date) {
 
 function normalize(value: string) {
   return value.trim().toLowerCase();
+}
+
+function normalizePhone(value: string | null | undefined) {
+  return (value || '').replace(/\D/g, '');
+}
+
+function isInferredClient(client: Client) {
+  return client.sync_uuid.startsWith('reservation-');
 }
 
 function dateTimeSortValue(reservation: Reservation) {

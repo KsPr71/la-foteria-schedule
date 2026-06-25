@@ -1,8 +1,14 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { router, Tabs } from "expo-router";
+import { useRef } from "react";
 import type { ReactNode } from "react";
-import type { AccessibilityState, GestureResponderEvent } from "react-native";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import type {
+  AccessibilityState,
+  GestureResponderEvent,
+  NativeSyntheticEvent,
+  NativeTouchEvent,
+} from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { useAppPalette } from "@/lib/appPalette";
 import { requestNewReservation } from "@/lib/reservationActions";
@@ -12,10 +18,35 @@ const CENTER_BUTTON_SIZE = 50;
 
 export default function AppTabs() {
   const { palette } = useAppPalette();
+  const centerPressStart = useRef({ x: 0, y: 0 });
+  const centerPressMoved = useRef(false);
 
   const openNewReservation = () => {
     router.navigate("/");
     setTimeout(requestNewReservation, 80);
+  };
+
+  const handleCenterPressIn = (event: GestureResponderEvent) => {
+    centerPressStart.current = {
+      x: event.nativeEvent.pageX,
+      y: event.nativeEvent.pageY,
+    };
+    centerPressMoved.current = false;
+  };
+
+  const handleCenterTouchMove = (event: NativeSyntheticEvent<NativeTouchEvent>) => {
+    const { pageX, pageY } = event.nativeEvent;
+    const distanceX = Math.abs(pageX - centerPressStart.current.x);
+    const distanceY = Math.abs(pageY - centerPressStart.current.y);
+    if (distanceX > 10 || distanceY > 10) {
+      centerPressMoved.current = true;
+    }
+  };
+
+  const handleCenterPress = () => {
+    if (!centerPressMoved.current) {
+      openNewReservation();
+    }
   };
 
   return (
@@ -55,10 +86,11 @@ export default function AppTabs() {
           options={{
             title: "Agenda",
             tabBarAccessibilityLabel: "Agenda",
-            tabBarIcon: ({ color }) => (
-              <Image
-                source={require("@/assets/images/tabIcons/home.png")}
-                style={[styles.tabIcon, { tintColor: color }]}
+            tabBarIcon: ({ color, focused }) => (
+              <MaterialCommunityIcons
+                name={focused ? "calendar-month" : "calendar-month-outline"}
+                color={color}
+                size={24}
               />
             ),
           }}
@@ -68,10 +100,11 @@ export default function AppTabs() {
           options={{
             title: "Datos",
             tabBarAccessibilityLabel: "Datos",
-            tabBarIcon: ({ color }) => (
-              <Image
-                source={require("@/assets/images/tabIcons/explore.png")}
-                style={[styles.tabIcon, { tintColor: color }]}
+            tabBarIcon: ({ color, focused }) => (
+              <MaterialCommunityIcons
+                name={focused ? "database" : "database-outline"}
+                color={color}
+                size={24}
               />
             ),
           }}
@@ -85,7 +118,9 @@ export default function AppTabs() {
           { backgroundColor: palette.accent },
           pressed && styles.centerActionPressed,
         ]}
-        onPress={openNewReservation}
+        onPressIn={handleCenterPressIn}
+        onTouchMove={handleCenterTouchMove}
+        onPress={handleCenterPress}
       >
         <MaterialCommunityIcons name="plus" color="#fff" size={27} />
       </Pressable>
@@ -174,11 +209,6 @@ const styles = StyleSheet.create({
   },
   tabPillPressed: {
     opacity: 0.72,
-  },
-  tabIcon: {
-    width: 23,
-    height: 23,
-    resizeMode: "contain",
   },
   centerAction: {
     position: "absolute",
