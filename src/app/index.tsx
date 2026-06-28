@@ -31,6 +31,7 @@ import {
   ReservationForm,
   SessionType,
   dateKey,
+  deleteReservation,
   emptyForm,
   formFromReservation,
   formatDayLabel,
@@ -120,6 +121,7 @@ export default function AgendaScreen() {
   const [sessionSearch, setSessionSearch] = useState('');
   const [photographerSearch, setPhotographerSearch] = useState('');
   const [form, setForm] = useState<ReservationForm>(emptyForm());
+  const [deletingReservationId, setDeletingReservationId] = useState('');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -277,6 +279,33 @@ export default function AgendaScreen() {
     }
   };
 
+  const confirmDeleteReservation = (reservation: Reservation) => {
+    Alert.alert(
+      'Eliminar reserva',
+      `¿Deseas eliminar la reserva de ${reservation.customer_name}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingReservationId(reservation.sync_uuid);
+            try {
+              await deleteReservation(reservation.sync_uuid);
+              setReservations((current) =>
+                current.filter((item) => item.sync_uuid !== reservation.sync_uuid),
+              );
+            } catch (error) {
+              Alert.alert('No se pudo eliminar', String(error));
+            } finally {
+              setDeletingReservationId('');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const shareReservationReceipt = async () => {
     if (!form.customer_name.trim()) {
       Alert.alert('Falta el cliente', 'Selecciona o introduce el nombre del cliente antes de generar el recibo.');
@@ -421,6 +450,8 @@ export default function AgendaScreen() {
               key={reservation.sync_uuid}
               reservation={reservation}
               onPress={() => openEdit(reservation)}
+              onDelete={() => confirmDeleteReservation(reservation)}
+              deleting={deletingReservationId === reservation.sync_uuid}
             />
           ))
         ) : (
@@ -855,7 +886,17 @@ export default function AgendaScreen() {
   );
 }
 
-function ReservationCard({ reservation, onPress }: { reservation: Reservation; onPress: () => void }) {
+function ReservationCard({
+  reservation,
+  onPress,
+  onDelete,
+  deleting,
+}: {
+  reservation: Reservation;
+  onPress: () => void;
+  onDelete: () => void;
+  deleting?: boolean;
+}) {
   const { palette } = useAppPalette();
   const themed = useMemo(() => makeThemedStyles(palette), [palette]);
   const age = ageAtReservation(reservation);
@@ -863,8 +904,28 @@ function ReservationCard({ reservation, onPress }: { reservation: Reservation; o
     <Pressable onPress={onPress} style={[styles.card, themed.card]}>
       <View style={styles.cardBody}>
         <View style={[styles.cardTimeHighlight, themed.cardTimeHighlight]}>
-          <MaterialCommunityIcons name="clock-outline" color="#fff" size={16} />
-          <Text style={[styles.cardTimeTextPill, themed.cardTimeTextPill]}>{timeRange(reservation)}</Text>
+          <View style={styles.cardTimeLeft}>
+            <MaterialCommunityIcons name="clock-outline" color="#fff" size={16} />
+            <Text style={[styles.cardTimeTextPill, themed.cardTimeTextPill]}>{timeRange(reservation)}</Text>
+          </View>
+          <Pressable
+            disabled={deleting}
+            accessibilityLabel="Eliminar reserva"
+            style={({ pressed }) => [
+              styles.cardDeleteButton,
+              pressed && styles.cardDeleteButtonPressed,
+              deleting && styles.cardDeleteButtonDisabled,
+            ]}
+            onPress={(event) => {
+              event.stopPropagation();
+              onDelete();
+            }}>
+            {deleting ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <MaterialCommunityIcons name="trash-can-outline" color="#fff" size={19} />
+            )}
+          </Pressable>
         </View>
 
         <View style={styles.cardClientHeader}>
@@ -2182,13 +2243,35 @@ const styles = StyleSheet.create({
   cardTimeHighlight: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
     gap: 7,
     backgroundColor: brick,
     borderRadius: 8,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 7,
     alignSelf: 'stretch',
+  },
+  cardTimeLeft: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  cardDeleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    flexShrink: 0,
+  },
+  cardDeleteButtonPressed: {
+    backgroundColor: 'rgba(255,255,255,0.28)',
+  },
+  cardDeleteButtonDisabled: {
+    opacity: 0.65,
   },
   advanceBadge: {
     flexShrink: 0,

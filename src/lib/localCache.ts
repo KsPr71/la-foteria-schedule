@@ -86,6 +86,26 @@ export async function clearCachedTable(tableName: string) {
   return writeQueue;
 }
 
+export async function reconcileCachedRows(tableName: string, remoteUuids: string[]) {
+  const uniqueUuids = [...new Set(remoteUuids.filter(Boolean))];
+  writeQueue = writeQueue.then(async () => {
+    const db = await getDb();
+    if (!uniqueUuids.length) {
+      await db.runAsync('DELETE FROM sync_cache WHERE table_name = ?', tableName);
+      return;
+    }
+    const placeholders = uniqueUuids.map(() => '?').join(', ');
+    await db.runAsync(
+      `DELETE FROM sync_cache
+       WHERE table_name = ?
+         AND sync_uuid NOT IN (${placeholders})`,
+      tableName,
+      ...uniqueUuids,
+    );
+  });
+  return writeQueue;
+}
+
 export async function getPreference(key: string) {
   const db = await getDb();
   const rows = await db.getAllAsync<{ value: string }>(

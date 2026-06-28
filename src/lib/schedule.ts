@@ -1,4 +1,9 @@
-import { getCachedRows, getLastCachedUpdate, upsertCachedRows } from './localCache';
+import {
+  getCachedRows,
+  getLastCachedUpdate,
+  reconcileCachedRows,
+  upsertCachedRows,
+} from './localCache';
 import { insertRow, makeUuid, readTable, updateRow } from './supabase';
 
 export type Client = {
@@ -194,9 +199,14 @@ async function syncTable<T extends { sync_uuid: string; updated_at?: string | nu
       ...(lastUpdate ? { updated_at: `gt.${lastUpdate}` } : {}),
     });
     await upsertCachedRows(tableName, remoteRows);
-    if (!remoteRows.length) {
-      return cachedRows;
-    }
+    const remoteIndex = await readTable<Pick<T, 'sync_uuid'>>(tableName, {
+      select: 'sync_uuid',
+      order: 'sync_uuid.asc',
+    });
+    await reconcileCachedRows(
+      tableName,
+      remoteIndex.map((row) => row.sync_uuid),
+    );
     return getCachedRows<T>(tableName);
   } catch (error) {
     if (cachedRows.length) {
@@ -281,6 +291,18 @@ export async function saveReservation(form: ReservationForm, clients: Client[]) 
     upsertCachedRows('lafoteria_reservations', savedReservationRows),
   ]);
   return savedReservationRows;
+}
+
+export async function deleteReservation(syncUuid: string) {
+  const now = new Date().toISOString();
+  const rows = await updateRow<Reservation>('lafoteria_reservations', syncUuid, {
+    active: false,
+    state: 'pending_delete',
+    sync_status: 'pending',
+    updated_at: now,
+  });
+  await upsertCachedRows('lafoteria_reservations', rows);
+  return rows;
 }
 
 export function formFromReservation(reservation: Reservation): ReservationForm {
