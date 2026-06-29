@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'r
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -18,6 +19,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
+import * as IntentLauncher from 'expo-intent-launcher';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as Sharing from 'expo-sharing';
 import PaperProvider from 'react-native-paper/lib/commonjs/core/PaperProvider';
@@ -973,8 +975,15 @@ const ReservationReceipt = forwardRef<View, { form: ReservationForm }>(function 
   return (
     <View ref={ref} collapsable={false} style={styles.receiptCard}>
       <View style={styles.receiptHeader}>
-        <Text style={styles.receiptBrand}>La Fotería</Text>
-        <Text style={styles.receiptTitle}>Recibo de reserva</Text>
+        <View style={styles.receiptHeaderText}>
+          <Text style={styles.receiptBrand}>La Fotería</Text>
+          <Text style={styles.receiptTitle}>Recibo de reserva</Text>
+        </View>
+        <Image
+          source={require('../../assets/images/foteria.png')}
+          style={styles.receiptLogo}
+          resizeMode="contain"
+        />
       </View>
 
       <View style={styles.receiptSection}>
@@ -1064,9 +1073,7 @@ function openReservationWhatsApp(reservation: Reservation) {
     `Le recordamos su sesión fotográfica en La Fotería para el ${longDate(dateKey(reservation))} a las ${timeRange(reservation)}.`,
     'Le esperamos.',
   ].join(' ');
-  Linking.openURL(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`).catch(() => {
-    Alert.alert('No se pudo abrir WhatsApp', 'Verifica que WhatsApp esté instalado o disponible en este dispositivo.');
-  });
+  openWhatsAppApp(phone, message);
 }
 
 function openFormReceiptWhatsApp(form: ReservationForm) {
@@ -1099,9 +1106,43 @@ function openFormReceiptWhatsApp(form: ReservationForm) {
     '',
     'Reserva registrada. Le esperamos en La Fotería.',
   ].filter(Boolean);
-  Linking.openURL(`https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`).catch(() => {
-    Alert.alert('No se pudo abrir WhatsApp', 'Verifica que WhatsApp esté instalado o disponible en este dispositivo.');
-  });
+  openWhatsAppApp(phone, lines.join('\n'));
+}
+
+function openWhatsAppApp(phone: string, message: string) {
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  if (Platform.OS !== 'android') {
+    Linking.openURL(url).catch(() => {
+      Alert.alert('No se pudo abrir WhatsApp', 'Verifica que WhatsApp esté instalado o disponible en este dispositivo.');
+    });
+    return;
+  }
+
+  const openPackage = async (packageName: string, appName: string) => {
+    try {
+      await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+        data: url,
+        packageName,
+      });
+    } catch {
+      Alert.alert(
+        `${appName} no está disponible`,
+        `Verifica que ${appName} esté instalado en este dispositivo.`,
+      );
+    }
+  };
+
+  Alert.alert('Enviar con', 'Selecciona la aplicación de WhatsApp que deseas usar.', [
+    {
+      text: 'WhatsApp',
+      onPress: () => openPackage('com.whatsapp', 'WhatsApp'),
+    },
+    {
+      text: 'WhatsApp Business',
+      onPress: () => openPackage('com.whatsapp.w4b', 'WhatsApp Business'),
+    },
+    { text: 'Cancelar', style: 'cancel' },
+  ]);
 }
 
 function normalizePhoneForWhatsApp(phone: string) {
@@ -2527,10 +2568,21 @@ const styles = StyleSheet.create({
     borderColor: '#ead3ce',
   },
   receiptHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     borderBottomWidth: 2,
     borderBottomColor: brick,
     paddingBottom: 12,
     marginBottom: 14,
+  },
+  receiptHeaderText: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  receiptLogo: {
+    width: 62,
+    height: 52,
   },
   receiptBrand: {
     color: brick,
