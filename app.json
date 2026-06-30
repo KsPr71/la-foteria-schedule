@@ -33,7 +33,7 @@
           "backgroundColor": "#208AEF",
           "android": {
             "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
+            "imageWidth": 100
           }
         }
       ],
@@ -44,7 +44,7 @@
         {
           "defaultChannel": "reservas",
           "icon": "./assets/images/notification-icon-monochrome.png",
-          "color": "#8F332A",
+          "color": "#208AEF",
           "enableBackgroundRemoteNotifications": false
         }
       ],
