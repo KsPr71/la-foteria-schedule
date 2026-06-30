@@ -565,6 +565,36 @@ export default function AgendaScreen() {
               onPress={() => setPhotographerSelectorVisible(true)}
             />
 
+            <Text style={styles.fieldLabel}>Locación</Text>
+            <View style={styles.paymentChoices}>
+              {[
+                { key: 'studio', label: 'Estudio', icon: 'home-outline' },
+                { key: 'outdoors', label: 'Exteriores', icon: 'map-marker-outline' },
+              ].map((item) => (
+                <Pressable
+                  key={item.key}
+                  style={[
+                    styles.paymentChoice,
+                    themed.paymentChoice,
+                    form.location === item.key && themed.paymentChoiceSelected,
+                  ]}
+                  onPress={() => updateForm('location', item.key)}>
+                  <MaterialCommunityIcons
+                    name={item.icon as 'home-outline' | 'map-marker-outline'}
+                    color={form.location === item.key ? palette.accent : muted}
+                    size={17}
+                  />
+                  <Text
+                    style={[
+                      styles.paymentChoiceText,
+                      form.location === item.key && themed.accentText,
+                    ]}>
+                    {item.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
             <Text style={[styles.sectionTitle, themed.accentText]}>Anticipo</Text>
             <View style={styles.advanceFormRow}>
               <View style={styles.advanceAmountColumn}>
@@ -909,6 +939,16 @@ function ReservationCard({
           <View style={styles.cardTimeLeft}>
             <MaterialCommunityIcons name="clock-outline" color="#fff" size={16} />
             <Text style={[styles.cardTimeTextPill, themed.cardTimeTextPill]}>{timeRange(reservation)}</Text>
+            <View style={styles.cardHeaderLocationBadge}>
+              <MaterialCommunityIcons
+                name={reservation.location === 'outdoors' ? 'map-marker-outline' : 'home-outline'}
+                color={palette.accent}
+                size={14}
+              />
+              <Text style={[styles.cardHeaderLocationText, themed.accentText]}>
+                {reservation.location === 'outdoors' ? 'Exteriores' : 'Estudio'}
+              </Text>
+            </View>
           </View>
           <Pressable
             disabled={deleting}
@@ -1007,6 +1047,7 @@ const ReservationReceipt = forwardRef<View, { form: ReservationForm }>(function 
         <ReceiptField label="Fecha" value={longDate(form.date)} />
         <ReceiptField label="Horario" value={form.time || 'Sin hora'} />
         <ReceiptField label="Sesión" value={form.session_type || 'Sin tipo'} wide />
+        <ReceiptField label="Locación" value={form.location === 'outdoors' ? 'Exteriores' : 'Estudio'} wide />
       </View>
 
       <View style={styles.receiptPaymentBox}>
@@ -1071,6 +1112,7 @@ function openReservationWhatsApp(reservation: Reservation) {
   const message = [
     `Hola ${reservation.customer_name}.`,
     `Le recordamos su sesión fotográfica en La Fotería para el ${longDate(dateKey(reservation))} a las ${timeRange(reservation)}.`,
+    `Locación: ${reservation.location === 'outdoors' ? 'Exteriores' : 'Estudio'}.`,
     'Le esperamos.',
   ].join(' ');
   openWhatsAppApp(phone, message);
@@ -1101,6 +1143,7 @@ function openFormReceiptWhatsApp(form: ReservationForm) {
     `Fecha: ${longDate(form.date)}`,
     `Horario: ${form.time}`,
     `Tipo de sesión: ${form.session_type || 'Sin tipo'}`,
+    `Locación: ${form.location === 'outdoors' ? 'Exteriores' : 'Estudio'}`,
     `Anticipo: ${form.advance_amount || '0.00'}`,
     `Método de pago: ${paymentMethod}`,
     '',
@@ -2213,6 +2256,20 @@ const styles = StyleSheet.create({
     padding: 10,
     justifyContent: 'center',
     marginTop: 2,
+  },
+  cardHeaderLocationBadge: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexShrink: 0,
+    gap: 4,
+    borderRadius: 6,
+    backgroundColor: '#fff',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  cardHeaderLocationText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
   cardPanelBottomRow: {
     flexDirection: 'row',

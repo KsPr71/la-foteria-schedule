@@ -46,6 +46,7 @@ export type Reservation = {
   timezone?: string | null;
   photographer_uuid?: string | null;
   photographer_name?: string | null;
+  location?: 'studio' | 'outdoors' | null;
   advance_amount?: number | null;
   advance_payment_method?: string | null;
   state?: string | null;
@@ -67,6 +68,7 @@ export type ReservationForm = {
   time: string;
   photographer_uuid: string;
   photographer_name: string;
+  location: 'studio' | 'outdoors';
   advance_amount: string;
   advance_payment_method: string;
   note: string;
@@ -272,6 +274,7 @@ export async function saveReservation(form: ReservationForm, clients: Client[]) 
     timezone: 'America/Havana',
     photographer_uuid: form.photographer_uuid || null,
     photographer_name: form.photographer_name || null,
+    location: form.location || 'studio',
     advance_amount: Number(form.advance_amount) || 0,
     advance_payment_method: form.advance_payment_method || null,
     state: 'reserved',
@@ -321,6 +324,7 @@ export function formFromReservation(reservation: Reservation): ReservationForm {
     time: rawTime.slice(0, 5),
     photographer_uuid: reservation.photographer_uuid || '',
     photographer_name: reservation.photographer_name || '',
+    location: reservation.location === 'outdoors' ? 'outdoors' : 'studio',
     advance_amount: String(reservation.advance_amount || ''),
     advance_payment_method: normalizePaymentMethod(reservation.advance_payment_method || ''),
     note: reservation.note || '',
@@ -339,6 +343,7 @@ export function emptyForm(date = todayIsoDate()): ReservationForm {
     time: '09:00',
     photographer_uuid: '',
     photographer_name: '',
+    location: 'studio',
     advance_amount: '',
     advance_payment_method: '',
     note: '',
